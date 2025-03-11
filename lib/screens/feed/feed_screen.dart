@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:pull_to_refresh/pull_to_refresh.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/app_state.dart';
 import '../../services/post_service.dart';
 import 'widgets/feed_filter.dart';
 import 'widgets/post_card.dart';
+import '../../models/post_model.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -64,11 +65,9 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
           ),
         ],
       ),
-      body: SmartRefresher(
-        controller: _refreshController,
+      body: RefreshIndicator(
         onRefresh: () async {
-          await Future.delayed(const Duration(seconds: 2));
-          _refreshController.refreshCompleted();
+          // Implement refresh logic
         },
         child: TabBarView(
           controller: _tabController,

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'feed/feed_screen.dart';
+import 'groups/groups_screen.dart';
+import 'create_post/create_post_screen.dart';
+import 'messages/messages_screen.dart';
+import 'profile/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

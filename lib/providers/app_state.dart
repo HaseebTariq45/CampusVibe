@@ -32,4 +32,22 @@ class AppState extends ChangeNotifier {
     _selectedLanguage = languageCode;
     notifyListeners();
   }
+
+  Future<void> handleError(dynamic error, StackTrace stackTrace) async {
+    try {
+      await _analyticsService.logError(
+        error.toString(),
+        stackTrace,
+        _currentUser?.uid ?? 'unknown',
+      );
+      
+      if (error is FirebaseAuthException) {
+        // Handle auth errors
+      } else if (error is TimeoutException) {
+        // Handle timeout errors
+      }
+    } catch (e) {
+      print('Error handling error: $e');
+    }
+  }
 }

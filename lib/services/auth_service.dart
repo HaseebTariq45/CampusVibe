@@ -24,25 +24,33 @@ class AuthService {
 
   // Sign in with email and password
   Future<UserModel?> signInWithEmail(String email, String password) async {
-    if (!isValidUniversityEmail(email)) {
-      throw 'Please use your university email address';
-    }
     try {
-      final UserCredential result = await _auth.signInWithEmailAndPassword(
+      if (!isValidUniversityEmail(email)) {
+        throw FirebaseAuthException(
+          code: 'invalid-email',
+          message: 'Please use your university email address',
+        );
+      }
+
+      final result = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      final User? user = result.user;
-      if (user != null) {
-        final doc = await _firestore.collection('users').doc(user.uid).get();
-        if (doc.exists) {
-          return UserModel.fromJson(doc.data()!);
+
+      if (result.user != null) {
+        final doc = await _firestore.collection('users').doc(result.user!.uid).get();
+        if (!doc.exists) {
+          throw FirebaseAuthException(
+            code: 'user-not-found',
+            message: 'User profile not found',
+          );
         }
+        return UserModel.fromJson(doc.data()!);
       }
       return null;
-    } catch (e) {
-      print(e.toString());
-      return null;
+    } on FirebaseAuthException catch (e) {
+      print('SignIn error: ${e.message}');
+      rethrow;
     }
   }
 

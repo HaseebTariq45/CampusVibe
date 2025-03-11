@@ -1,6 +1,9 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ml_algo/ml_algo.dart';
+import 'package:device_info/device_info.dart';
+import 'dart:io';
+import 'package:ml_dataframe/ml_dataframe.dart';
 
 class AnalyticsService {
   final FirebaseAnalytics _analytics;
@@ -118,5 +121,54 @@ class AnalyticsService {
 
     // Calculate engagement score based on views, RSVPs, and interaction rates
     return 0.0; // Simplified example
+  }
+
+  Future<void> logError(
+    String errorMessage,
+    StackTrace stackTrace,
+    String userId,
+    {Map<String, dynamic>? extraData}
+  ) async {
+    await _firestore.collection('error_logs').add({
+      'error': errorMessage,
+      'stackTrace': stackTrace.toString(),
+      'userId': userId,
+      'timestamp': FieldValue.serverTimestamp(),
+      'deviceInfo': await _getDeviceInfo(),
+      'extraData': extraData,
+    });
+  }
+
+  Future<Map<String, String>> _getDeviceInfo() async {
+    final deviceInfo = await DeviceInfoPlugin().deviceInfo;
+    return {
+      'platform': Platform.operatingSystem,
+      'version': Platform.operatingSystemVersion,
+      'deviceModel': deviceInfo.toString(),
+    };
+  }
+
+  Future<Map<String, dynamic>> getUserInsights(String userId) async {
+    final activities = await _firestore
+        .collection('user_activity')
+        .where('userId', isEqualTo: userId)
+        .orderBy('timestamp', descending: true)
+        .limit(1000)
+        .get();
+
+    final data = activities.docs.map((doc) => doc.data()).toList();
+    final dataFrame = DataFrame(data);
+    
+    return {
+      'activityTrends': _calculateActivityTrends(dataFrame),
+      'peakEngagementTimes': _findPeakEngagementTimes(dataFrame),
+      'interestClusters': await _generateInterestClusters(dataFrame),
+      'recommendedConnections': await _findRecommendedConnections(userId, dataFrame),
+    };
+  }
+
+  Map<String, double> _calculateActivityTrends(DataFrame data) {
+    // Implement ML-based trend analysis
+    return {};
   }
 }

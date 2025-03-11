@@ -8,10 +8,28 @@ import 'screens/auth/register_screen.dart';
 import 'providers/app_state.dart';
 import 'theme/app_theme.dart';
 import 'screens/splash_screen.dart';
+import 'firebase_options.dart';
+import 'services/notification_service.dart';
+import 'services/cache_service.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  
+  // Initialize services
+  await NotificationService().initialize();
+  await CacheService(await SharedPreferences.getInstance()).clearExpiredCache();
+  
+  if (!kIsWeb) {
+    await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
+  }
   
   runApp(
     MultiProvider(
@@ -35,12 +53,22 @@ class CampusVibe extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: appState.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      home: const AuthWrapper(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const AuthWrapper(),
+        '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/home': (context) => const HomeScreen(),
+        '/create-post': (context) => const CreatePostScreen(),
+        '/search': (context) => const SearchScreen(),
+      },
     );
   }
 }
 
 class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key}); // Add key parameter
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(

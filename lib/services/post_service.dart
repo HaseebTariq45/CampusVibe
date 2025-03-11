@@ -2,13 +2,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_performance/firebase_performance.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:math' show exp;
 import '../models/post_model.dart';
 import '../models/comment_model.dart';
+import '../models/user_model.dart';
 
 class PostService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final CacheService _cacheService;
   final _postsSubject = BehaviorSubject<List<PostModel>>();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   Stream<List<PostModel>> getFeedPosts({String? university, List<String>? interests}) {
     Query query = _firestore.collection('posts');
@@ -278,5 +282,52 @@ class PostService {
             data['commentCount'] * weights['comments']! +
             data['shareCount'] * weights['shares']!) *
         exp(-weights['timeDecay']! * age);
+  }
+
+  Future<List<PostModel>> getPostsWithRetry(String university) async {
+    for (int i = 0; i < 3; i++) {
+      try {
+        final snapshot = await _firestore
+            .collection('posts')
+            .where('university', isEqualTo: university)
+            .get()
+            .timeout(const Duration(seconds: 5));
+            
+        final posts = snapshot.docs
+            .map((doc) => PostModel.fromJson({...doc.data(), 'id': doc.id}))
+            .toList();
+            
+        await _cacheService.cacheData('posts_$university', posts);
+        return posts;
+      } catch (e) {
+        if (i == 2) {
+          final cached = _cacheService.getCachedData<List<dynamic>>(
+            'posts_$university',
+            (json) => (json as List).map((p) => PostModel.fromJson(p)).toList(),
+          );
+          if (cached != null) return cached;
+          rethrow;
+        }
+      }
+    }
+    throw Exception('Failed to fetch posts');
+  }
+
+  Future<List<String>> _getUserInterests(String userId) async {
+    final userDoc = await _firestore.collection('users').doc(userId).get();
+    return List<String>.from(userDoc.data()?['interests'] ?? []);
+  }
+
+  Future<List<String>> _getRecentInteractions(String userId) async {
+    final interactions = await _firestore
+        .collection('user_engagement')
+        .where('userId', isEqualTo: userId)
+        .orderBy('timestamp', descending: true)
+        .limit(10)
+        .get();
+    
+    return interactions.docs
+        .map((doc) => doc.data()['targetId'] as String)
+        .toList();
   }
 }

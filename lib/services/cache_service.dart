@@ -2,6 +2,7 @@ import 'package:shared_preferences.dart';
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:crypto/crypto.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 class CacheService {
   final SharedPreferences _prefs;
@@ -46,5 +47,40 @@ class CacheService {
       }
     }
     return null;
+  }
+
+  Future<void> cacheDataWithCompression(String key, dynamic data) async {
+    final compressed = await compute(_compressData, jsonEncode(data));
+    await _prefs.setString(key, base64Encode(compressed));
+  }
+
+  Future<T?> getCompressedData<T>(
+    String key, 
+    T Function(Map<String, dynamic>) fromJson,
+  ) async {
+    final compressed = _prefs.getString(key);
+    if (compressed != null) {
+      final decompressed = await compute(
+        _decompressData, 
+        base64Decode(compressed),
+      );
+      return fromJson(jsonDecode(decompressed));
+    }
+    return null;
+  }
+
+  Future<void> clearExpiredCache() async {
+    final keys = _prefs.getKeys();
+    final now = DateTime.now();
+    
+    for (final key in keys) {
+      final data = await getEncryptedData(key, (json) => json);
+      if (data != null && data['expiry'] != null) {
+        final expiry = DateTime.parse(data['expiry']);
+        if (expiry.isBefore(now)) {
+          await _prefs.remove(key);
+        }
+      }
+    }
   }
 }
