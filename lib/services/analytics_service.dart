@@ -94,4 +94,29 @@ class AnalyticsService {
         .map((e) => e.key)
         .toList();
   }
+
+  Future<Map<String, dynamic>> getEventInsights(String eventId) async {
+    final analytics = await _firestore
+        .collection('event_analytics')
+        .doc(eventId)
+        .get();
+    
+    final participantStats = await _calculateParticipantDemographics(eventId);
+    final engagementScore = await _calculateEventEngagementScore(eventId);
+
+    return {
+      'basicStats': analytics.data(),
+      'demographics': participantStats,
+      'engagementScore': engagementScore,
+      'predictions': await _predictEventSuccess(analytics.data()),
+    };
+  }
+
+  Future<double> _calculateEventEngagementScore(String eventId) async {
+    final event = await _firestore.collection('events').doc(eventId).get();
+    final analytics = await _firestore.collection('event_analytics').doc(eventId).get();
+
+    // Calculate engagement score based on views, RSVPs, and interaction rates
+    return 0.0; // Simplified example
+  }
 }

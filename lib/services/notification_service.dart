@@ -34,4 +34,35 @@ class NotificationService {
   Future<void> sendNotification(NotificationModel notification) async {
     await _firestore.collection('notifications').add(notification.toJson());
   }
+
+  Future<void> scheduleEventReminder(String eventId, DateTime eventTime) async {
+    final reminder = eventTime.subtract(const Duration(hours: 24));
+    
+    await _messaging.schedule(
+      'event_reminder_$eventId',
+      'Upcoming Event Tomorrow',
+      'Don\'t forget about your event tomorrow!',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          'event_reminders',
+          'Event Reminders',
+          importance: Importance.high,
+        ),
+        iOS: IOSNotificationDetails(),
+      ),
+      scheduledDate: reminder,
+      androidAllowWhileIdle: true,
+    );
+  }
+
+  Future<void> scheduleWeeklyDigest(String userId) async {
+    final eventsSnapshot = await _firestore
+        .collection('events')
+        .where('participants.$userId', isEqualTo: 'going')
+        .where('dateTime', isGreaterThan: Timestamp.now())
+        .get();
+
+    final events = eventsSnapshot.docs.map((doc) => doc.data()).toList();
+    // Create and send digest notification
+  }
 }
